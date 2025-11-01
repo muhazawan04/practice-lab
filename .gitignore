@@ -1,0 +1,18 @@
+# Python virtual environments
+venv/
+env/
+__pycache__/
+*.pyc
+
+# ROS2 build folders
+build/
+install/
+log/
+
+# VS Code settings
+.vscode/
+
+# Temporary / OS files
+.DS_Store
+Thumbs.db
+*.swp
