@@ -1,18 +1,30 @@
-# Python virtual environments
+# Existing rules
 venv/
 env/
 __pycache__/
 *.pyc
-
-# ROS2 build folders
 build/
 install/
 log/
-
-# VS Code settings
 .vscode/
-
-# Temporary / OS files
 .DS_Store
 Thumbs.db
 *.swp
+
+# --- Recommended extras ---
+
+# Python packaging/build stuff
+*.egg-info/
+dist/
+*.whl
+
+# ROS2 cache files
+.colcon_install_layout
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Large model/data folders (optional)
+data/
+models/
