@@ -88,19 +88,23 @@ class VirtualWhiteboard:
 
         # + button
         if x_offset < x < x_offset + self.button_size[0] and 10 < y < 10 + self.button_size[1]:
-            self.thickness += 2
+            self.thickness += 1
             print(f"Brush size increased: {self.thickness}")
             return
         x_offset += self.button_size[0] + self.spacing
 
         # - button
         if x_offset < x < x_offset + self.button_size[0] and 10 < y < 10 + self.button_size[1]:
-            self.thickness = max(1, self.thickness - 2)
+            self.thickness = max(1, self.thickness - 1)
             print(f"Brush size decreased: {self.thickness}")
             return
+    def get_finger_distance(self, tip, base):
+        distance = math.hypot(tip.x - base.x, tip.y - base.y)
+        return distance
+
 
     def process_hand(self, frame):
-        """Handles hand tracking and drawing."""
+        #"""Handles hand tracking and drawing."""
         h, w, _ = frame.shape
         if self.canvas is None:
             self.canvas = np.zeros((h, w, 3), np.uint8)
@@ -112,33 +116,62 @@ class VirtualWhiteboard:
             hand_landmarks = results.multi_hand_landmarks[0]
             self.mp_drawing.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
 
+            # Get fingertips
             index_tip = hand_landmarks.landmark[8]
+            middle_tip = hand_landmarks.landmark[12]
+            ring_tip = hand_landmarks.landmark[16]
+            pinky_tip = hand_landmarks.landmark[20]
             thumb_tip = hand_landmarks.landmark[4]
+            
+            # Get palm base points
+            wrist = hand_landmarks.landmark[0]
+            palm_center = hand_landmarks.landmark[9]  # Middle finger MCP joint
+            palm_length = self.get_finger_distance(palm_center, wrist)
+            print(f"Palm length: {palm_length}")    
+            
+            # Check if fingers are closed using normalized distance thresholds
+            thumb_dist = self.get_finger_distance(thumb_tip, wrist)
+            ring_dist = self.get_finger_distance(ring_tip, palm_center)
+            pinky_dist = self.get_finger_distance(pinky_tip, palm_center)
+
+            # Define distance thresholds (normalized)
+            CLOSED_THRESHOLD = 0.9 * palm_length  # 15% of palm length
+            print(f"Thumb dist: {thumb_dist}, threshold: {CLOSED_THRESHOLD}")
+            is_ring_closed = ring_dist < CLOSED_THRESHOLD
+            is_pinky_closed = pinky_dist < CLOSED_THRESHOLD
+            is_thumb_closed = thumb_dist < CLOSED_THRESHOLD
 
             x1, y1 = int(index_tip.x * w), int(index_tip.y * h)
-            x2, y2 = int(thumb_tip.x * w), int(thumb_tip.y * h)
-            distance = math.hypot(x2 - x1, y2 - y1)
+            x2, y2 = int(middle_tip.x * w), int(middle_tip.y * h)
+            distance = self.get_finger_distance(index_tip, middle_tip) / palm_length  # Normalized
+            print(f"Index-Middle normalized distance: {distance}")
 
-            # --- TOOLBAR SELECTION (by index finger only)
+            # Drawing logic
             if y1 < self.toolbar_height:
                 self.check_toolbar_selection(x1, y1, w)
                 self.prev_x, self.prev_y = 0, 0
+            elif distance < 0.25 and is_ring_closed and is_pinky_closed and is_thumb_closed:
+                draw_x = (x1 + x2) // 2
+                draw_y = (y1 + y2) // 2
+                
+                circle_radius = max(3, self.thickness)
+                cv2.circle(frame, (draw_x, draw_y), circle_radius, self.draw_color, -1)
 
-            # --- DRAWING MODE (by pinch gesture)
-            elif distance < 25:
-                cv2.circle(frame, (x1, y1), 10, self.draw_color, -1)
                 if self.prev_x == 0 and self.prev_y == 0:
-                    self.prev_x, self.prev_y = x1, y1
+                    self.prev_x, self.prev_y = draw_x, draw_y
 
-                movement = math.hypot(x1 - self.prev_x, y1 - self.prev_y)
+                movement = math.hypot(draw_x - self.prev_x, draw_y - self.prev_y)
                 if movement > self.min_movement:
                     cv2.line(self.canvas, (self.prev_x, self.prev_y),
-                             (x1, y1), self.draw_color, self.thickness)
-                    self.prev_x, self.prev_y = x1, y1
+                            (draw_x, draw_y), self.draw_color, self.thickness)
+                    self.prev_x, self.prev_y = draw_x, draw_y
             else:
                 self.prev_x, self.prev_y = 0, 0
 
         return frame
+
+
+    
 
     def run(self):
         """Main loop."""
