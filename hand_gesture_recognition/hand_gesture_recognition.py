@@ -10,8 +10,8 @@ hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 
 # Initialize webcam
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 720)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 560)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1080)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 # Canvas for drawing
 canvas = None
 
@@ -50,6 +50,12 @@ while True:
 
         # Compute distance between them
         distance = math.hypot(x2 - x1, y2 - y1)
+        if key == ord('r'):
+                draw_color = (0, 0, 255)
+        elif key == ord('g'):
+            draw_color = (0, 255, 0)
+        elif key == ord('b'):
+            draw_color = (255, 0, 0)
 
         # If they are close enough → draw mode
         if distance < 20:
